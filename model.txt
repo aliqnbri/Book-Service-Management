@@ -1,0 +1,425 @@
+
+
+
+
+
+
+
+# class Books(Model):
+#     id = SerialPrimaryKey()
+#     title = Varchar(length=200, not_null=True)
+#     author = Varchar(length=200, not_null=True)
+#     genre = Varchar(length=100, not_null=True)
+
+#     def get_absolute_url(self):
+#         return reverse('book-detail', kwargs={'id': self.id})
+
+#     @classmethod
+#     def get_book_with_reviews(cls, book_id):
+#         query = """
+#         SELECT
+#                 b.id, b.title, b.author, b.genre, r.rating, u.username
+#         FROM
+#             books b
+#         LEFT JOIN
+#             reviews r ON b.id = r.book_id
+#         LEFT JOIN
+#             users u ON r.user_id = u.id
+#         WHERE
+#             b.id = %s
+#             """
+    
+#         results = Books._execute_query(query, (book_id,))
+
+#         if not results:
+#             return None
+#     # Organize the results
+#         book_info = {
+#             'id':results[0][0],
+#             'title': results[0][1],
+#             'author': results[0][2],
+#             'genre': results[0][3],
+#             'reviews': [{'rating': review[4], 'user': review[5]} for review in results]
+#         }
+        
+#         for row in results:
+#             if row[4] is not None and row[5] is not None:
+#                 review = {
+#                     'username': row[5],
+#                     'rating': row[4],
+#                 }
+#                 book_info['reviews'].append(review)
+        
+#         return book_info
+    
+#     @classmethod
+#     def get_all_book_ids(cls):
+#         query = "SELECT id FROM books"
+#         results = cls._execute_query(query)
+#         return [row['id'] for row in results]
+
+
+
+
+
+---------------------------------------------
+
+
+Model
+
+
+
+
+
+
+
+# from .DatabaseConncetor import PsqlConnector
+# from .schema import Column ,ForeignKey
+# from typing import List, Type, Dict, Any, Optional
+
+
+
+
+# class ModelMeta(type):
+#     def __new__(cls, name, bases, dct):
+#         if name != 'Model':
+#             columns = {k: v for k, v in dct.items() if isinstance(v, (Column, ForeignKey))}
+#             dct['_columns'] = columns
+#             dct['table_name'] = name.lower()
+
+
+#             # Add the create method to the class
+#             def create(cls, **kwargs):
+#                 instance = cls.__new__(cls)  # Create a new instance without calling __init__
+#                 for key, value in kwargs.items():
+#                     setattr(instance, key, value)
+#                 return instance
+            
+#             dct['create'] = classmethod(create)
+            
+#         return super().__new__(cls, name, bases, dct)
+      
+
+
+# class Model(metaclass=ModelMeta):
+
+#     @classmethod
+#     def _execute_query(cls, query: str, params: Optional[tuple] = ()) -> List[tuple]:
+    
+#         with PsqlConnector() as psql:
+#             psql.execute(query, params)
+#             return psql.fetchall()
+
+#     @classmethod
+#     def get_columns(cls) -> List[str]:
+#         query = "SELECT column_name FROM information_schema.columns WHERE table_name = %s;"
+#         params = (cls.table_name,)
+#         columns = cls._execute_query(query, params)
+#         return [row[0] for row in columns]
+    
+
+#     @classmethod
+#     def get_object(cls, **kwargs) -> Optional['Model']:
+#         columns = cls.get_columns()
+#         condition = ' AND '.join([f"{k} = %s" for k in kwargs])
+#         values = tuple(kwargs.values())
+#         query = f'SELECT * FROM {cls.table_name} WHERE {condition};'
+
+#         rows = cls._execute_query(query, params= values)
+
+#         if rows:
+#             return cls.create(**dict(zip(columns, rows[0])))
+#         return None
+
+#     @classmethod
+#     def insert(cls: Type['Model'], **kwargs) -> 'Model':
+#         columns = ', '.join(kwargs.keys())
+#         values = ', '.join(['%s'] * len(kwargs))
+#         query = f'INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING id;'
+#         params = tuple(kwargs.values())
+#         raw_id = cls._execute_query(query, params)[0][0]
+  
+#         obj = cls.get_object(id=raw_id)
+
+#         return obj
+    
+#     @classmethod
+#     def create_table(cls):
+#         columns_definitions = ', '.join(f"{name} {col}" for name, col in cls._columns.items())
+#         foreign_keys = [f"FOREIGN KEY ({name}) {col}" for name, col in cls._columns.items() if isinstance(col, ForeignKey)]
+#         unique_constraints = [name for name, col in cls._columns.items() if col.unique and not isinstance(col, ForeignKey)]
+#         check_constraints = [f"CHECK ({col.check})" for name, col in cls._columns.items() if col.check]
+
+#         query_parts = columns_definitions + foreign_keys
+#         if unique_constraints:
+#             query_parts.append(f"UNIQUE ({', '.join(unique_constraints)})")
+#         query_parts.extend(check_constraints)
+
+#         query = f'CREATE TABLE IF NOT EXISTS {cls.table_name} ({', '.join(query_parts)}));'
+#         cls._execute_query(query)
+
+#     @classmethod
+#     def drop_table(cls):
+#         query = f'DROP TABLE IF EXISTS {cls.table_name};'
+#         cls._execute_query(query)
+
+#     @classmethod
+#     def all(cls, filter: Optional[Dict[str, Any]] = None) -> List['Model']:
+#         columns = cls.get_columns()
+#         query = f'SELECT * FROM {cls.table_name}'
+#         if filter:
+#             condition = ' AND '.join([f"{k} = %s" for k in filter.keys()])
+#             query += f' WHERE {condition}'
+#             params = tuple(filter.values())
+#         else:
+#             params = ()
+#         rows = cls._execute_query(query, params)
+#         return [cls.create(**dict(zip(columns, row))) for row in rows]
+    
+
+
+
+#     def update(self, **kwargs):
+#         updates = ', '.join([f"{k} = %s" for k in kwargs])
+#         values = tuple(kwargs.values()) + (self.id,)
+#         query = f"UPDATE {self.table_name} SET {updates} WHERE id = %s;"
+#         self._execute_query(query, values)
+#         for k, v in kwargs.items():
+#             setattr(self, k, v)
+
+#     def delete(self):
+#         query = f'DELETE FROM {self.table_name} WHERE id = %s;'
+#         params = (self.id,)
+#         self._execute_query(query, params)
+
+---------------------------------
+
+
+import hashlib
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password( password: str, stored_hash: str) -> bool:
+    """Verify if the provided password matches the stored hash."""
+    return hash_password(password) == stored_hash
+
+
+
+
+
+_______________________________
+
+
+register verify_password
+
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+   
+            return Response({
+                'message': 'User Created Successfully',
+                'data': serializer.data,
+                
+            })
+        return Response({
+            'message': 'User Not Created',
+            'data': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+        -----------------------------------
+
+
+
+
+
+        # class Users(Model):    
+
+#     id = SerialPrimaryKey()
+#     username = Varchar(length=100, unique=True, not_null=True)
+#     password = Varchar(length=100, not_null=True)
+
+
+
+
+# class Reviews(Model):
+
+#     id = SerialPrimaryKey()
+#     book_id= ForeignKey('books', on_delete='CASCADE')
+#     user_id = ForeignKey('users', on_delete='CASCADE')
+#     rating = Integer(check='rating >= 1 AND rating <= 5',unique=False)
+
+
+
+
+login View
+
+class LoginView(APIView):
+    serializer_class = serializers.LoginSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+     
+        if serializer.is_valid():
+            return Response({"message": "Authenticated successfully"}, status=status.HTTP_200_OK)
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+-----------------------
+
+class ReviewSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    user_id = serializers.IntegerField(read_only=True)
+    book_id = serializers.IntegerField(read_only=True)
+    rating = serializers.IntegerField()
+
+
+
+
+
+            # book_id = review.get('book_id')
+        # if book_id is None:
+        #     book_id = self.context['request'].parser_context['kwargs']['id']
+
+
+
+
+
+    def get_detail_url(self, obj):
+        request = self.context.get('request')
+        book_id = obj.get('book_id')
+        return request.build_absolute_uri(reverse('book-detail', args=[book_id]))
+    
+
+    def fetch_book_title(self,book_id):
+        query = 'SELECT title FROM books WHERE id = %s;'
+        params = (book_id,)
+
+        # Get book title from database using raw SQL query
+        try:
+            with PsqlConnector() as psql:
+                psql.execute(query, params)
+                result = psql.fetchone()
+                return result[0] if result else 'Unknown'
+        except Exception as e:
+            print(f"Error fetching book title: {e}")    
+        
+
+        is in review serlizazer
+        def update(self, validated_data):
+        kwargs = {}
+        for key, value in validated_data.items():
+            if key in ['rating']:  # Add other fields you want to update here
+                kwargs[key] = value
+        self.update(self.id, **kwargs)
+        return self
+
+
+for user serializeer
+             review_representations = [
+            {
+                'review_detail': self.context['request'].build_absolute_uri(
+                    reverse('review-detail', kwargs={'id': review['id']})
+                ),
+                'book_detail_url': self.get_detail_url(review),
+                'book_title': self.fetch_book_title(review['book_id']),
+                'rating': review['rating'],
+            }
+            for review in reviews
+        ]
+
+
+
+            # def update(self ,**kwargs):
+        #     updates = ', '.join([f"{k} = %s" for k in kwargs])
+        #     values = tuple(kwargs.values()) + (self.id,)
+        #     query = f"UPDATE {self.table_name} SET {updates} WHERE id = %s;"
+        #     self._execute_query(query, values)
+        #     if id == self.id:
+        #         for k, v in kwargs.items():
+        #             setattr(self, k, v)
+
+
+
+            @classmethod
+    def new_update(cls, instance: 'Model', **kwargs):
+        if instance.id == kwargs.get('id'):
+            updates = ', '.join([f"{k} = %s" for k in kwargs if k != 'id'])
+            values = tuple(v for k, v in kwargs.items() if k != 'id') + (instance.id,)
+            query = f"UPDATE {cls.table_name} SET {updates} WHERE id = %s;"
+            cls._execute_query(query, values)
+            for k, v in kwargs.items():
+                setattr(instance, k, v)
+        else:
+            raise ValueError("Instance id does not match the id provided in kwargs")            
+
+
+             def update(cls ,**kwargs):
+        updates = ', '.join([f"{k} = %s" for k in kwargs])
+        values = tuple(kwargs.values()) + (cls.id,)
+        query = f"UPDATE {self.table_name} SET {updates} WHERE id = %s;"
+        self._execute_query(query, values)
+        if id == self.id:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+
+
+
+        def update(self,id, **kwargs):
+            if id:
+                id = self.id
+            updates = ', '.join([f"{k} = %s" for k in kwargs])
+            values = tuple(kwargs.values()) + (self.id,)
+            query = f"UPDATE {self.table_name} SET {updates} WHERE id = %s;"
+            self._execute_query(query, values)
+            if id == self.id:
+                for k, v in kwargs.items():
+                    setattr(self, k, v)
+
+
+
+                    If user A's rating is similar to user B's rating, suggest to user B the book that user A has given a high rating and user B has not rated (has not read).
+If a user has not rated a book before, don't suggest a book to him and message "There is not Enough data About you"
+
+
+
+
+    @action(detail=True, methods=['get'], url_path='suggest', url_name='suggest')
+    def suggest(self, request, id=None):
+        if id is None:
+            return Response({"detail": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        recommended_books = recommend_books(id, Storage())
+
+        if isinstance(recommended_books, str):
+            return Response({"detail": recommended_books}, status=status.HTTP_400_BAD_REQUEST)
+
+        book_serializer = self.get_serializer_class(
+            recommended_books, many=True)
+
+        response_data = {
+            'recommended_books': book_serializer.data,
+            'book_list_url': request.build_absolute_uri(reverse('book:book-list')),
+            'recommendation_url': request.build_absolute_uri(reverse('user:user_suggest', args=[id]))
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+        def cosine_distance(vec1, vec2):
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    magnitude1 = math.sqrt(sum(a * a for a in vec1))
+    magnitude2 = math.sqrt(sum(b * b for b in vec2))
+    return dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0
