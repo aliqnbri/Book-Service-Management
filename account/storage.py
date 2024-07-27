@@ -11,9 +11,9 @@ class Storage:
     def _execute_query(cls, query: str, params: Optional[tuple] = ()) -> List[tuple]:
         """Executes a SQL query and returns the results."""
         try:
-            with PsqlConnector() as psql:
-                psql.execute(query, params)
-                return psql.fetchall()
+            with PsqlConnector.get_cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchall()
         except Exception as e:
             logging.error(f"Error executing query: {e}")
             return []

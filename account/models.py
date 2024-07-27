@@ -43,7 +43,7 @@ class Reviews(Model):
 
 # Define the models using dataclasses
 @dataclass
-class Users(Model):
+class User(Model):
     id: SerialPrimaryKey = field(default_factory=SerialPrimaryKey)
     username: Varchar = field(default_factory=lambda: Varchar(length=100, unique=True, not_null=True))
     password: Varchar = field(default_factory=lambda: Varchar(length=100, not_null=True))

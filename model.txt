@@ -1,6 +1,36 @@
 
 
 
+def _convert_value(self, value):
+    if isinstance(value, list):
+        return [self._convert_value(item) for item in value]
+    elif hasattr(value, 'to_dict'):
+        return value.to_dict()
+    else:
+        return value
+
+
+def to_dict(self):
+    return {k: v for k, v in self.__dict__.items()}
+
+
+
+
+# def to_dict(self):
+#     convert_value = lambda value: [self.convert_value(item) for item in value] if isinstance(value, list) else value.to_dict() if hasattr(value, 'to_dict') else value
+#     return {k: convert_value(v) for k, v in self.__dict__.items()}
+
+
+# def to_dict(self):
+#     result = {}
+#     for k, v in self.__dict__.items():
+#         if isinstance(v, list):
+#             result[k] = [self.to_dict() if hasattr(item, 'to_dict') else item for item in v]
+#         elif hasattr(v, 'to_dict'):
+#             result[k] = v.to_dict()
+#         else:
+#             result[k] = v
+#     return result
 
 
 
@@ -423,3 +453,50 @@ If a user has not rated a book before, don't suggest a book to him and message "
     magnitude1 = math.sqrt(sum(a * a for a in vec1))
     magnitude2 = math.sqrt(sum(b * b for b in vec2))
     return dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0
+
+
+
+
+
+import psycopg2 as psql
+from django.conf import settings
+
+
+class PsqlConnector:
+    connection =None
+    cursor =None
+
+    @classmethod
+    def __enter__(cls):
+        cls.connection = None
+        params = cls.get_db_config()
+        print("\033[32;5mConnecting to PostgreSQL Database...\033[m")
+        cls.connection = psql.connect(**params)
+        cls.cursor = cls.connection.cursor()
+        return cls.cursor
+    
+    @classmethod
+    def __exit__(cls, exc_type, exc_val, exc_tb):
+        if cls.cursor:
+            cls.connection.commit()
+            cls.cursor.close()
+        if cls.connection:
+            cls.connection.close()
+            print("\033[31;5mConnection Closed\033[m")
+
+
+    @classmethod
+    def get_db_config(cls):
+        try:
+            db_settings = settings.DATABASES['default']
+            db_config = {
+                'dbname': db_settings['NAME'],
+                'user': db_settings['USER'],
+                'password': db_settings['PASSWORD'],
+                'host': db_settings['HOST'],
+                'port': db_settings['PORT']
+            }        
+            return db_config
+        except KeyError as error:
+            raise Exception(f'Missing database setting: {error}')
+

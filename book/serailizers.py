@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from .models import Books
+from .models import Book
 from django.urls import reverse
 
 
-class ReviewSerializer(serializers.Serializer):
-    rating = serializers.IntegerField()
+class SimpleReviewSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=200)
+    rating = serializers.IntegerField()
 
     class Meta:
         fields = ['rating']
@@ -18,19 +18,18 @@ class BookSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     author = serializers.CharField(max_length=200)
     genre = serializers.CharField(max_length=200)
-
     reviews = serializers.SerializerMethodField()
 
     def get_reviews(self, instance):
         if hasattr(instance, 'reviews'):
-            return [ReviewSerializer(review).data for review in instance.reviews]
+            return [SimpleReviewSerializer(review).data for review in instance.reviews]
         return []
 
 
     def to_representation(self, instance):
         request = self.context.get('request')
       
-        instance = Books.create(**instance)
+        instance = Book.create(**instance)
         list_url = request.build_absolute_uri(reverse('book:book-list',)) 
     
         return {
