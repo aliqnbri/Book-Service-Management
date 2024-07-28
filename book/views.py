@@ -43,11 +43,12 @@ class BookViewSet(viewsets.ViewSet):
         serializer = self.serializer_class(data=request.data, context={'request': request ,'view': self})
         if serializer.is_valid():
             validated_data = serializer.validated_data
-            instance = models.Book.insert(**validated_data)[0]
-            serializer = self.serializer_class(instance, many=True, context={'request': request,'view': self})
-            
-       
-            return Response(serializer.data, status=status.HTTP_201_CREATED,headers={'Location': serializer.data['detail_url']})
+            print(validated_data)
+            obj_list = models.Book.insert(**validated_data)[0]
+            instance = models.Book.get_book_by_reviews(book_id = obj_list['id'])
+            serializer = self.serializer_class(instance, context={'request': request,'view': self})
+            detail_url = serializer.get_detail_url(instance)
+            return Response(serializer.data, status=status.HTTP_201_CREATED,headers={'Location': detail_url})
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

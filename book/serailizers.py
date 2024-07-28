@@ -51,7 +51,7 @@ class BookSerializer(serializers.Serializer):
         match view.action:
             case 'list':
                 representation.pop('reviews', None)
-            case 'retrieve' | 'destroy':
+            case 'retrieve' | 'destroy'| 'create':
                 representation.pop('detail_url')
                 representation = {'list_url': self.get_list_url(), **representation}
                 representation['reviews'] = self.get_reviews(instance)
