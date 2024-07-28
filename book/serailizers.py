@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Book
 from django.urls import reverse
+from django.urls import reverse_lazy
 
 
 class SimpleReviewSerializer(serializers.Serializer):
@@ -28,9 +29,14 @@ class BookSerializer(serializers.Serializer):
         return updated_instance
 
 
-    def get_detail_url(self, obj):
+    def get_detail_url(self, instance):
         request = self.context.get('request')
-        return request.build_absolute_uri(reverse('book:book-detail', kwargs={'id': int(obj['id'])}))
+        # return [request.build_absolute_uri(reverse_lazy('book:book-detail', kwargs={'id': item['id']})) for item in instance]
+        return request.build_absolute_uri(reverse_lazy('book:book-detail', kwargs={'id': instance['id']}))    
+    
+    def get_list_url(self):
+        request = self.context.get('request')
+        return request.build_absolute_uri(reverse_lazy('book:book-list'))
 
 
     def get_reviews(self, instance):
@@ -45,12 +51,13 @@ class BookSerializer(serializers.Serializer):
         match view.action:
             case 'list':
                 representation.pop('reviews', None)
-            case 'retrieve' | 'update':
+            case 'retrieve' | 'destroy':
                 representation.pop('detail_url')
-                list_url = request.build_absolute_uri(reverse('book:book-list'))
-                representation = {'list_url': list_url, **representation}
-                # representation['list_url'] = request.build_absolute_uri(reverse('book:book-list'))
+                representation = {'list_url': self.get_list_url(), **representation}
                 representation['reviews'] = self.get_reviews(instance)
+            case 'update':
+                representation['reviews'] = self.get_reviews(instance)
+
 
         return representation
 

@@ -29,8 +29,8 @@ class Book(Model):
         }
         return book_info
 
+    # @lru_cache(maxsize=128)
     @classmethod
-    @lru_cache(maxsize=128)
     def get_book_by_reviews(cls, book_id: int) -> Optional[Dict[str, Any]]:
         query = """
         SELECT

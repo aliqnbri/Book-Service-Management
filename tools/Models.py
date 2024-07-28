@@ -55,7 +55,7 @@ class Model(metaclass=ModelMeta):
         return [row[0] for row in columns]
 
     @classmethod
-    @lru_cache(maxsize=128)
+    # @lru_cache(maxsize=128)
     def get(cls, **kwargs) -> list[dict]:
         columns = cls.get_columns()
         condition = ' AND '.join([f"{k} = %s" for k in kwargs])
@@ -67,10 +67,10 @@ class Model(metaclass=ModelMeta):
     def insert(cls, **kwargs):
         columns = ', '.join(kwargs.keys())
         values = ', '.join(['%s'] * len(kwargs))
-        query = f'INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING *;'
+        query = f'''INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING *;'''
         params = tuple(kwargs.values())
         all_colums = cls.get_columns()
-        instance = cls._fetch_as_dicts(query,params, all_colums)
+        instance = cls._fetch_as_dicts(query, params, all_colums)
 
         return instance
 
@@ -78,7 +78,8 @@ class Model(metaclass=ModelMeta):
     def create_table(cls):
         columns_definitions = ', '.join(
             f"{name} {col}" for name, col in cls._columns.items())
-        foreign_keys = [f"FOREIGN KEY ({name}) {col}" for name, col in cls._columns.items() if isinstance(col, ForeignKey)]
+        foreign_keys = [f"FOREIGN KEY ({name}) {
+            col}" for name, col in cls._columns.items() if isinstance(col, ForeignKey)]
         unique_constraints = [name for name, col in cls._columns.items(
         ) if col.unique and not isinstance(col, ForeignKey)]
         check_constraints = [
@@ -111,21 +112,24 @@ class Model(metaclass=ModelMeta):
         return cls._fetch_as_dicts(query, params, columns)
 
     @classmethod
-    def update(cls,id, **kwargs)-> None:
+    def update(cls, id, **kwargs) -> None:
 
         columns = cls.get_columns()
         updates = ', '.join(f"{k} = %s" for k in kwargs)
-        values = (*kwargs.values(), id)  
-        query = f"UPDATE {cls.table_name} SET {updates} WHERE id = %s RETURNING *;"
+        values = (*kwargs.values(), id)
+        query = f"UPDATE {cls.table_name} SET {
+            updates} WHERE id = %s RETURNING *;"
         row_dict = cls._fetch_as_dicts(query, values, columns)
-        
+
         return row_dict[0] if row_dict else None
-        
- 
 
     @classmethod
-    def destroy(cls, id):
-        query = f'DELETE FROM {cls.table_name} WHERE id = %s;'
-        params = (id,)
-        with PsqlConnector.get_cursor() as cursor:
-            cursor.execute(query, params)
+    def destroy(cls, **kwargs):
+        query = f'''DELETE FROM {cls.table_name} WHERE {
+            " AND ".join([f"{key} = %s" for key in kwargs.keys()])};'''
+        params = tuple(kwargs.values())
+        try:
+            with PsqlConnector.get_cursor() as cursor:
+                cursor.execute(query, params)
+        finally:
+            cursor.close()
