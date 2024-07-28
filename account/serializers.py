@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from account.models import Users, Reviews
+
 from tools import HashPassword
 from rest_framework.response import Response
 from rest_framework import status

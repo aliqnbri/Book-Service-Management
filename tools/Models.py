@@ -1,5 +1,5 @@
 from .DatabaseConncetor import PsqlConnector
-from schema import *
+from tools.schema import ForeignKey
 from typing import List, Type, Dict, Any, Optional
 from functools import lru_cache
 import logging
@@ -67,11 +67,12 @@ class Model(metaclass=ModelMeta):
     def insert(cls, **kwargs):
         columns = ', '.join(kwargs.keys())
         values = ', '.join(['%s'] * len(kwargs))
-        query = f'INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING id;'
+        query = f'INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING *;'
         params = tuple(kwargs.values())
-        raw_id = cls._execute_query(query, params)[0][0]
-        row_dict = cls.get(id=raw_id)
-        return row_dict
+        all_colums = cls.get_columns()
+        instance = cls._fetch_as_dicts(query,params, all_colums)
+
+        return instance
 
     @classmethod
     def create_table(cls):
@@ -110,17 +111,21 @@ class Model(metaclass=ModelMeta):
         return cls._fetch_as_dicts(query, params, columns)
 
     @classmethod
-    def update(cls, id, **kwargs) -> None:
+    def update(cls,id, **kwargs)-> None:
 
-        updates = ', '.join([f"{k} = %s" for k in kwargs])
-        values = tuple(kwargs.values()) + (id,)
-        query = f"UPDATE {cls.table_name} SET {updates} WHERE id = %s;"
-        cls._execute_query(query, values)
-        # for k, v in kwargs.items():
-        #     setattr( k, v)
+        columns = cls.get_columns()
+        updates = ', '.join(f"{k} = %s" for k in kwargs)
+        values = (*kwargs.values(), id)  
+        query = f"UPDATE {cls.table_name} SET {updates} WHERE id = %s RETURNING *;"
+        row_dict = cls._fetch_as_dicts(query, values, columns)
+        
+        return row_dict[0] if row_dict else None
+        
+ 
 
     @classmethod
-    def destroy(cls, instance):
+    def destroy(cls, id):
         query = f'DELETE FROM {cls.table_name} WHERE id = %s;'
-        params = (instance.id,)
-        instance._execute_query(query, params)
+        params = (id,)
+        with PsqlConnector.get_cursor() as cursor:
+            cursor.execute(query, params)

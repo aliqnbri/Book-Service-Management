@@ -11,8 +11,8 @@ from rest_framework.views import APIView
 class APIRootView(APIView):
     def get(self, request, format=None):
         return Response({
-            'users': reverse('account:user-list', request=request, format=format),
-            'reviews': reverse('account:review-list', request=request, format=format),
+            # 'users': reverse('account:user-list', request=request, format=format),
+            # 'reviews': reverse('account:review-list', request=request, format=format),
             'books': reverse('book:book-list', request=request, format=format),
         })
     
