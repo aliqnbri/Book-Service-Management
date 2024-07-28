@@ -16,7 +16,14 @@ class BookViewSet(viewsets.ViewSet):
 
     def list(self, request, **kwargs) -> Response:
         filter_params = request.query_params.dict()
-        queryset = models.Book.all(filter=filter_params) if filter_params else models.Book.all()
+        ordering = request.query_params.get('ordering', None)
+
+        if ordering:
+            ordering = ordering.split(',')
+            queryset = models.Book.all(filter=filter_params, ordering=ordering) if filter_params else models.Book.all(ordering=ordering)
+        else:
+            queryset = models.Book.all(filter=filter_params) if filter_params else models.Book.all()
+            
         serializer = self.serializer_class(queryset, many=True, context={'request': request,'view': self})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -52,19 +59,18 @@ class BookViewSet(viewsets.ViewSet):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-
- 
         
     def destroy(self, request, id: int) -> Response:
-        book = models.Book.get(id=id)
-        if not book:
+        instance = models.Book.get(id=id)[0]
+        if not instance:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
         
-        serializer = self.serializer_class(book, context={'request': request,'view': self})
+        serializer = self.serializer_class(instance ,context={'request': request,'view': self})
         models.Book.destroy(id= id)
-        models.Review.destroy(user_id=id)
-        list_url = serializer.to_representation(book).get('list_url') or request.build_absolute_uri(reverse('book-list'))
-        return Response(status=status.HTTP_302_FOUND,headers={'Location': list_url})    
+        models.Review.destroy(book_id=id)
+        list_url = serializer.get_list_url()
+        return Response({'message': 'Book deleted successfully'},status=status.HTTP_200_OK,headers={'Location': list_url})    
         
 
 

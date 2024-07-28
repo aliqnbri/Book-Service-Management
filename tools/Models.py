@@ -100,7 +100,7 @@ class Model(metaclass=ModelMeta):
         cls._execute_query(query)
 
     @classmethod
-    def all(cls, filter: Optional[Dict[str, Any]] = None) -> List[dict]:
+    def all(cls, filter: Optional[Dict[str, Any]] = None, ordering: Optional[List[str]] = None) -> List[dict]:
         columns = cls.get_columns()
         query = f'SELECT * FROM {cls.table_name}'
         params = ()
@@ -108,6 +108,10 @@ class Model(metaclass=ModelMeta):
             condition = ' AND '.join([f"{k} = %s" for k in filter.keys()])
             query += f' WHERE {condition}'
             params = tuple(filter.values())
+
+        if ordering:
+            ordering_clause = ', '.join(ordering)
+            query += f' ORDER BY {ordering_clause}'    
 
         return cls._fetch_as_dicts(query, params, columns)
 
