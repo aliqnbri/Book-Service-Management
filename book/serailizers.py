@@ -23,18 +23,17 @@ class BookSerializer(serializers.Serializer):
 
     def get_detail_url(self, instance: Book) -> str:
         request = self.context.get('request')
-        return request.build_absolute_uri(reverse_lazy('book:book-detail', kwargs={'id': instance.id}))
+        return request.build_absolute_uri(reverse_lazy('book:book-detail', kwargs={'id': instance['id']}))
 
     def get_list_url(self) -> str:
         request = self.context.get('request')
         return request.build_absolute_uri(reverse_lazy('book:book-list'))
 
     def get_reviews(self, instance: Book) -> List[Dict[str, Any]]:
-        return [SimpleReviewSerializer(review).data for review in instance.reviews]
+        return [SimpleReviewSerializer(review).data for review in instance['reviews']]
 
     def to_representation(self, instance: Book) -> Dict[str, Any]:
         representation = super().to_representation(instance)
-        request = self.context.get('request')
         view = self.context.get('view')
 
         match view.action:
