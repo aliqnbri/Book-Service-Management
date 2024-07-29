@@ -500,3 +500,54 @@ class PsqlConnector:
         except KeyError as error:
             raise Exception(f'Missing database setting: {error}')
 
+
+
+# class UpdateReviewSerializer(serializers.Serializer):
+#     rating = serializers.IntegerField(min_value=1, max_value=5)
+
+#     def update(self, instance, validated_data):
+#         instance['rating'] = validated_data.get('rating', instance['rating'])
+#         return instance
+    
+#     def create(self, validated_data):
+#         review = Reviews.update(**validated_data)
+#         return review
+    
+    
+#     def to_representation(self, instance):
+#         print(instance)
+    
+#         return {
+#             'id': instance['id'],
+#             'detail_url': self.context['request'].build_absolute_uri(reverse('book:book-detail', args=[instance['book_id']])),
+#             'book_title': self.fetch_book_title(instance['book_id']),
+#             'rating': instance['rating'],
+#         }
+
+
+# class ReviewSerializer(BaseSerializer):
+#     id = serializers.IntegerField(read_only=True)
+#     book_title = serializers.CharField(read_only=True)
+#     rating = serializers.IntegerField(min_value=1, max_value=5)
+#     book_id = serializers.IntegerField(read_only=True)
+
+#     def to_representation(self, instance):
+#         # instance is a dictionary with review data
+#         review = instance
+#         book_id = review.get(
+#             'book_id', self.context['request'].parser_context['kwargs'].get('id'))
+#         book_title = self.fetch_book_title(book_id)
+
+#         return {
+#             'id': review['id'],
+#             'detail_url': self.get_detail_url(review, 'book:book-detail'),
+#             'book_title': book_title,
+#             'rating': review['rating'],
+
+#         }
+
+#     def update(self, instance, validated_data):
+#         for key, value in validated_data.items():
+#             if key in ['rating']:  # Add other fields you want to update here
+#                 instance[key] = value
+#         return instance

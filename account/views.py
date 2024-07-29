@@ -4,12 +4,12 @@ from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
-
+from .models import User
 from account import serializers
+
 from django.urls import reverse
 
 
-#
 from .storage import Storage
 from rest_framework.decorators import action
 
@@ -34,7 +34,6 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(APIView):
     serializer_class = serializers.LoginSerializer
-
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
@@ -69,74 +68,65 @@ class SuggestView(generics.GenericAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
     
-
-
-
 class UserViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.AllowAny]
+
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = serializers.UserSerializer
     lookup_field = 'id'
 
-    def get_serializer_class(self):
-        match self.action:
-            case 'list':
-                return serializers.UserSerializer
-            case 'update':
-                return serializers.UpdateReviewSerializer
-            case _:
-                return serializers.ReviewSerializer
 
+    def list(self, request):
+        filter_params = request.query_params.dict()
+        ordering = request.query_params.get('ordering', None)
+        if ordering:
+            ordering = ordering.split(',')
+            queryset = User.all_users(
+                filter=filter_params, ordering=ordering) if filter_params else User.all_users(ordering=ordering)
+        else:
+            queryset = User.all_users(
+                filter=filter_params) if filter_params else User.all_users()
+            
+        print(queryset)
 
-
-    def list(self, request, user_id=None):
-        user_data = Users.get_reviews(user_id=1)
-
-        serializer_class = self.get_serializer_class()
-        serializer = serializer_class(
-            data=user_data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
+        serializer = self.serializer_class(queryset, many=True, context={
+                                           'request': request, 'view': self})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, id=None):
-        user_data = Users.get_reviews(user_id=1)
-
-        serializer_class = self.get_serializer_class()
-        serializer = serializer_class(
-            data=user_data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-       
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-    def update(self, request, id=None):
-        serializer_class = self.get_serializer_class()
-        serializer = serializer_class(
-            data=request.data, partial=True, context={'request': request})
-        if serializer.is_valid():
-            review = Reviews.get_object(id=id)
-            dict_review = review.to_dict()
-            updated_review = serializer.update(
-                dict_review, serializer.validated_data)
-            print(updated_review)
-
-            Reviews.update(review, **updated_review)
-
-            return Response(updated_review, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=400)
-
-    def destroy(self, request, id=None):
-        if id is None:
-            return Response({'error': 'Review ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        review = Reviews.get_object(id=id)
-        if not review:
-            return Response({'error': 'Review not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        Reviews.destroy(review)
-        return Response({'message': 'Review deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        
+    
+    def retrieve(self, request, id: int) -> Response:
+        user_data = User.get_by_reviews(user_id=id)
+        serializer = self.serializer_class(user_data, context={'request': request, 'view': self})
+        data = serializer.data
+        data['user_detail_url'] = request.build_absolute_uri(reverse('user-detail', args=[id]))
+        return Response(data)
+        return Response(serializer.data)
+    
 
 
-# class ReviewViewSet(viewsets.ViewSet):
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class UserViewSet(viewsets.ViewSet):
 #     permission_classes = [permissions.AllowAny]
 #     lookup_field = 'id'
 
@@ -149,8 +139,11 @@ class UserViewSet(viewsets.ViewSet):
 #             case _:
 #                 return serializers.ReviewSerializer
 
+
+
 #     def list(self, request, user_id=None):
 #         user_data = Users.get_reviews(user_id=1)
+
 #         serializer_class = self.get_serializer_class()
 #         serializer = serializer_class(
 #             data=user_data, context={'request': request})
@@ -158,12 +151,16 @@ class UserViewSet(viewsets.ViewSet):
 #         return Response(serializer.data, status=status.HTTP_200_OK)
 
 #     def retrieve(self, request, id=None):
+#         user_data = Users.get_reviews(user_id=1)
 
-#         review = Reviews.get_object(id=id).to_dict()
 #         serializer_class = self.get_serializer_class()
-#         serializer = serializer_class(review, context={'request': request})
+#         serializer = serializer_class(
+#             data=user_data, context={'request': request})
+#         serializer.is_valid(raise_exception=True)
+       
 
 #         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 #     def update(self, request, id=None):
 #         serializer_class = self.get_serializer_class()
@@ -193,7 +190,6 @@ class UserViewSet(viewsets.ViewSet):
 #         return Response({'message': 'Review deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
-    
 
 
 

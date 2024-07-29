@@ -1,11 +1,12 @@
 from rest_framework import serializers
-
 from tools import HashPassword
 from rest_framework.response import Response
 from rest_framework import status
 from tools.CustomAuthentication import authenticate
 from django.urls import reverse
 from tools.DatabaseConncetor import PsqlConnector
+from .models import User
+from typing import Dict , Any
 
 
 class BaseSerializer(serializers.Serializer):
@@ -29,97 +30,67 @@ class BaseSerializer(serializers.Serializer):
             return 'Unknown'
 
 
-class UpdateReviewSerializer(serializers.Serializer):
-    rating = serializers.IntegerField(min_value=1, max_value=5)
 
-    def update(self, instance, validated_data):
-        instance['rating'] = validated_data.get('rating', instance['rating'])
-        return instance
-    
-    def create(self, validated_data):
-        review = Reviews.update(**validated_data)
-        return review
-    
-    
-    def to_representation(self, instance):
-        print(instance)
-    
-        return {
-            'id': instance['id'],
-            'detail_url': self.context['request'].build_absolute_uri(reverse('book:book-detail', args=[instance['book_id']])),
-            'book_title': self.fetch_book_title(instance['book_id']),
-            'rating': instance['rating'],
-        }
-
-
-class ReviewSerializer(BaseSerializer):
-    id = serializers.IntegerField(read_only=True)
-    book_title = serializers.CharField(read_only=True)
-    rating = serializers.IntegerField(min_value=1, max_value=5)
-    book_id = serializers.IntegerField(read_only=True)
-
-    def to_representation(self, instance):
-        # instance is a dictionary with review data
-        review = instance
-        book_id = review.get(
-            'book_id', self.context['request'].parser_context['kwargs'].get('id'))
-        book_title = self.fetch_book_title(book_id)
-
-        return {
-            'id': review['id'],
-            'detail_url': self.get_detail_url(review, 'book:book-detail'),
-            'book_title': book_title,
-            'rating': review['rating'],
-
-        }
-
-    def update(self, instance, validated_data):
-        for key, value in validated_data.items():
-            if key in ['rating']:  # Add other fields you want to update here
-                instance[key] = value
-        return instance
 
 
 class UserSerializer(BaseSerializer):
     id = serializers.IntegerField()
-    book_list_url= serializers.SerializerMethodField()
     username = serializers.CharField()
-    reviews = serializers.ListField()
-    recommends = serializers.SerializerMethodField()
-
-    class Meta:
-        fields = ['id', 'book_list_url', 'username', 'reviews', 'recommends']
+    # book_list_url= serializers.SerializerMethodField()
+    # reviews = serializers.ListField()
+    # recommends = serializers.SerializerMethodField()
 
 
 
-    def get_book_list_url(self,instance):
-        request = self.context.get('request')
-        return request.build_absolute_uri(reverse('book:book-list'))
+    # def get_book_list_url(self,instance):
+    #     request = self.context.get('request')
+    #     return request.build_absolute_uri(reverse('book:book-list'),kwargs={'id': instance['id']})
 
 
-    def get_recommends(self, instance):
-        request = self.context.get('request')
-        return request.build_absolute_uri(reverse('account:user-suggest', args=[instance['id']]))
+    # def get_recommends(self, instance):
+    #     request = self.context.get('request')
+    #     return request.build_absolute_uri(reverse('account:user-suggest', args=[instance['id']]))
+    
 
-    def to_representation(self, instance):
+
+    def to_representation(self, instance: User) -> Dict[str, Any]:
         representation = super().to_representation(instance)
-        reviews = instance.get('reviews', [])
+        view = self.context.get('view')
 
-        review_representations = [
-            {
-                'review_detail': self.get_detail_url(review, 'account:review-detail', 'id'),
-                'book_detail_url': self.get_detail_url(review, 'book:book-detail'),
-                'book_title': self.fetch_book_title(review['book_id']),
-                'rating': review['rating'],
-            }
-            for review in reviews
-        ]
-        representation['reviews'] = review_representations
-        representation['recommends'] = self.get_recommends(instance)
+        match view.action:
+            case 'list' | 'destroy':
+                representation['user_detail'] = self.get_detail_url(instance , 'account:user-detail', 'id')
+        #         representation.pop('reviews', None)
+        #         representation.pop('recommends', None)
+        #     # case 'retrieve' | 'create':
+        #     #     representation.pop('detail_url')
+        #     #     representation = {
+        #     #         'list_url': self.get_list_url(), **representation}
+        #     #     representation['reviews'] = self.get_reviews(instance)
+        #     # case 'update':
+        #     #     representation['reviews'] = self.get_reviews(instance)
+
+        return representation
+
+    # def to_representation(self, instance):
+    #     representation = super().to_representation(instance)
+    #     reviews = instance.get('reviews', [])
+
+    #     review_representations = [
+    #         {
+    #             'review_detail': self.get_detail_url(review, 'account:review-detail', 'id'),
+    #             'book_detail_url': self.get_detail_url(review, 'book:book-detail'),
+    #             'book_title': self.fetch_book_title(review['book_id']),
+    #             'rating': review['rating'],
+    #         }
+    #         for review in reviews
+    #     ]
+    #     representation['reviews'] = review_representations
+    #     representation['recommends'] = self.get_recommends(instance)
 
         
 
-        return representation
+    #     return representation
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -128,7 +99,7 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_username(self, value: str) -> str:
         # Custom validation method to check if the username already exists
-        if Users.get_object(username=value):
+        if User.get_object(username=value):
             raise serializers.ValidationError(f"User {value} already exists")
         return value
 
@@ -138,7 +109,7 @@ class RegisterSerializer(serializers.Serializer):
 
         # Hash the password and insert the user
         hashed_password = HashPassword.hash_password(password)
-        obj = Users.insert(username=username, password=hashed_password)
+        obj = User.insert(username=username, password=hashed_password)
         return obj
 
 
