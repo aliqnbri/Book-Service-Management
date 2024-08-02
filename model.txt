@@ -551,3 +551,15 @@ class PsqlConnector:
 #             if key in ['rating']:  # Add other fields you want to update here
 #                 instance[key] = value
 #         return instance
+
+
+ def get_serializer_class(self):
+        match self.action:
+            case 'register':
+                return serializers.RegisterSerializer
+            case 'suggest':
+                return serailizers.BookSerializer
+            case 'login':
+                return serializers.LoginSerializer
+            case _:
+                return serializers.UserSerializer

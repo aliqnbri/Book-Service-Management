@@ -54,8 +54,8 @@ class Model(metaclass=ModelMeta):
         columns = cls._execute_query(query, params)
         return [row[0] for row in columns]
 
-    @classmethod
     # @lru_cache(maxsize=128)
+    @classmethod
     def get(cls, **kwargs) -> list[dict]:
         columns = cls.get_columns()
         condition = ' AND '.join([f"{k} = %s" for k in kwargs])
@@ -78,8 +78,7 @@ class Model(metaclass=ModelMeta):
     def create_table(cls):
         columns_definitions = ', '.join(
             f"{name} {col}" for name, col in cls._columns.items())
-        foreign_keys = [f"FOREIGN KEY ({name}) {
-            col}" for name, col in cls._columns.items() if isinstance(col, ForeignKey)]
+        foreign_keys = [f"FOREIGN KEY ({name}) {col}" for name, col in cls._columns.items() if isinstance(col, ForeignKey)]
         unique_constraints = [name for name, col in cls._columns.items(
         ) if col.unique and not isinstance(col, ForeignKey)]
         check_constraints = [
