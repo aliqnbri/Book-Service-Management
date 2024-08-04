@@ -5,7 +5,18 @@ from functools import lru_cache
 
 
 class Review(Model):
-    pass
+    
+    @classmethod
+    def get_book_title(cls, review_id ):
+        query = """
+            SELECT b.title, r.rating
+            FROM reviews r
+            JOIN books b ON r.book_id = b.id
+            WHERE r.id = %s;"""
+        params = (review_id,)
+        keys = ['Book Title' , 'Rating']
+        result = cls._fetch_as_dicts(query,params,keys)
+        return result
 
 
 class Book(Model):

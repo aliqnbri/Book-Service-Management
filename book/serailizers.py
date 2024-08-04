@@ -5,8 +5,9 @@ from typing import Any, Dict, List
 
 
 class SimpleReviewSerializer(serializers.Serializer):
-    user = serializers.CharField(max_length=200)
+    user = serializers.CharField(read_only=True)
     rating = serializers.IntegerField()
+
 
 
 class BookSerializer(serializers.Serializer):

@@ -32,7 +32,7 @@ class User(Model):
 
     @classmethod
     def recommend_books(cls, user_id: int, top_n: int = 5) -> List[Dict[str, Any]]:
-        if (user_reviews := cls.get_reviews(user_id)) is None:
+        if not (user_reviews := cls.get_reviews(user_id)) or  None:
             return "There is not enough data about you."
         
         favorite_genre = cls.identify_favorite_genre(user_reviews)
@@ -83,7 +83,7 @@ class User(Model):
     def get_reviews(cls, user_id:int=None)-> List[Dict[str, any]]:
         query = """
             SELECT 
-                    b.id, b.title, r.rating
+                    r.id, b.id, b.title, r.rating
             FROM 
                 users u
             JOIN 
@@ -98,9 +98,10 @@ class User(Model):
 
         return [
             {
-                'book_id': row[0],
-                'book_title': row[1],
-                'rating': row[2],
+                'review_id': row[0],
+                'book_id': row[1],
+                'book_title': row[2],
+                'rating': row[3],
             }
             for row in result
         ]

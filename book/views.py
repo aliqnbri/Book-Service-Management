@@ -1,12 +1,33 @@
-from rest_framework import viewsets, permissions, status, views
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from book import serailizers, models
 from django.urls import reverse
 from typing import Any, Dict, List
+from tools.CustomAuthentication import JWTAuthentication
+from account.permission import IsAuthenticatedOrRedirect
+from rest_framework.decorators import action
 
+from rest_framework.exceptions import PermissionDenied
 
 class BookViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.AllowAny]
+    # permission_classes = [IsAuthenticatedOrRedirect,]
+    authentication_classes = [JWTAuthentication]
+
+    def get_permissions(self):
+        action_permissions = {
+            'list': [IsAuthenticatedOrRedirect],
+            'retrieve': [IsAuthenticatedOrRedirect],
+            'create': [IsAuthenticatedOrRedirect],
+            'update': [IsAuthenticatedOrRedirect],
+            'destroy': [IsAuthenticatedOrRedirect],
+        }
+        permission_classes = action_permissions.get(self.action, [permissions.AllowAny])
+        return [permission() for permission in permission_classes]
+
+   
+
+ 
+
     serializer_class = serailizers.BookSerializer
     lookup_field = 'id'
 
@@ -49,18 +70,18 @@ class BookViewSet(viewsets.ViewSet):
 
     def create(self, request) -> Response:
         serializer = self.serializer_class(data=request.data, context={
-                                           'request': request, 'view': self})
+                                        'request': request, 'view': self})
         if serializer.is_valid():
             validated_data = serializer.validated_data
-            print(validated_data)
+
             obj_list = models.Book.insert(**validated_data)[0]
             instance = models.Book.get_book_by_reviews(book_id=obj_list['id'])
             serializer = self.serializer_class(
                 instance, context={'request': request, 'view': self})
             detail_url = serializer.get_detail_url(instance)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers={'Location': detail_url})
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
     def destroy(self, request, id: int) -> Response:
         instance = models.Book.get(id=id)[0]
@@ -73,3 +94,6 @@ class BookViewSet(viewsets.ViewSet):
         models.Review.destroy(book_id=id)
         list_url = serializer.get_list_url()
         return Response({'message': 'Book deleted successfully'}, status=status.HTTP_200_OK, headers={'Location': list_url})
+    
+
+  

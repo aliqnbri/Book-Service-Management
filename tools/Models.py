@@ -64,7 +64,7 @@ class Model(metaclass=ModelMeta):
         return cls._fetch_as_dicts(query, values, columns)
 
     @classmethod
-    def insert(cls, **kwargs):
+    def insert(cls, **kwargs)-> List[Dict]:
         columns = ', '.join(kwargs.keys())
         values = ', '.join(['%s'] * len(kwargs))
         query = f'''INSERT INTO {cls.table_name} ({columns}) VALUES ({values}) RETURNING *;'''

@@ -32,23 +32,33 @@ def authenticate(username: str, password: str, table_name='users') -> bool:
     return HashPassword.hash_password(password) == stored_hash
 
 
+class JWTAuthentication(BaseAuthentication):
+    def authenticate(self, request):
+        if not (token := request.COOKIES.get('jwt')):
+            return None
+        if (payload := JWTService.is_token_valid(token)):
+            user = User.get(id=payload['user_id'])[0]
+            return (user, None)
+        raise AuthenticationFailed('User not found')
+
+
 class JWTService:
     secret_key = settings.SECRET_KEY
     algorithm = 'HS256'
 
     @classmethod
-    def token_generator(cls, user: dict, expiry_minutes: int = 60) -> str:
+    def token_generator(cls, user: dict, expiry_days: int = 7) -> str:
         payload = {
             'user_id': user['id'],
             'username': user['username'],
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=expiry_minutes),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=expiry_days),
             'iat': datetime.datetime.utcnow()
         }
         token = jwt.encode(payload, cls.secret_key, cls.algorithm)
         return token
 
     @classmethod
-    def refresh_token_generator(self, user: dict, expiry_days: int = 7) -> str:
+    def refresh_token_generator(self, user: dict, expiry_days: int = 30) -> str:
         """
         Generates a refresh token for a user.
         """
@@ -92,13 +102,16 @@ class JWTService:
         except jwt.DecodeError:
             # Token cannot be decoded
             return None
-
-
-class JWTAuthentication(BaseAuthentication):
-    def authenticate(self, request):
-        if not (token := request.COOKIES.get('jwt')):
+        
+    @classmethod
+    def decode_token(cls, token: str) -> Optional[dict]:
+        """
+        Decodes a JWT token and returns the payload.
+        """
+        try:
+            payload = jwt.decode(token, cls.secret_key, algorithms=[cls.algorithm])
+            return payload
+        except jwt.ExpiredSignatureError:
             return None
-        if (payload := JWTService.is_token_valid(token)):
-            user = User.get(id=payload['user_id'])[0]
-            return (user, None)
-        raise AuthenticationFailed('User not found')
+        except jwt.InvalidTokenError:
+            return None
