@@ -1,11 +1,10 @@
-from book.models import Book, Review
+from functools import cached_property
 from django.urls import reverse_lazy
 from tools.CustomAuthentication import JWTService
 from rest_framework import serializers
 from tools import HashPassword
 from rest_framework.response import Response
 from rest_framework import status
-
 from django.urls import reverse
 from tools.CustomAuthentication import authenticate
 from .models import User
@@ -27,7 +26,6 @@ class UserSerializer(BaseSerializer):
 
     def get_reviews(self, instance: Dict) -> List[Dict[str, Any]]:
         return instance.get('reviews', [])
-    
 
     def get_reviews_list(self, instance):
         request = self.context.get('request')
@@ -37,21 +35,9 @@ class UserSerializer(BaseSerializer):
         request = self.context.get('request')
         return request.build_absolute_uri(reverse('account:user-suggest', args=[instance['id']]))
 
-    def get_review_representations(self, instance: Dict[str, Any]) -> List[Dict[str, Any]]:
-        reviews = self.get_reviews(instance)
-        return [
-            {
-                'book ID': review['book_id'],
-                'book Detail': self.get_detail_url({'id': review['book_id']}, 'book:book-detail', 'id'),
-                'book Title': review['book_title'],
-                'rating': review['rating']
-            } for review in reviews
-        ]
-
     def to_representation(self, instance: Dict[str, Any]) -> Dict[str, Any]:
         representation = super().to_representation(instance)
         view = self.context.get('view')
-        print(instance, 'this is my userrepernstiaton')
 
         if view is not None:
             match view.action:
@@ -63,8 +49,7 @@ class UserSerializer(BaseSerializer):
                     representation['recommends'] = self.get_recommends(
                         instance)
                     representation['reviews'] = self.get_reviews_list(instance)
-                    # representation['reviews'] = self.get_review_representations(
-                    #     instance)
+
         return representation
 
 
@@ -107,9 +92,6 @@ class LoginSerializer(serializers.Serializer):
         raise serializers.ValidationError(
             {'error': 'Invalid credentials'})
 
-from typing import Dict, Any
-from functools import cached_property
-
 
 class ReviewSerializer(BaseSerializer):
     id = serializers.IntegerField(read_only=True)
@@ -117,12 +99,12 @@ class ReviewSerializer(BaseSerializer):
     book_id = serializers.IntegerField()
     rating = serializers.IntegerField(min_value=1, max_value=5)
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.context.get('view').action == 'update':
             self.fields['book_id'].read_only = True
 
+    @cached_property
     def get_user(self):
         request = self.context.get('request')
         refresh_token = request.COOKIES.get('refresh_token')
@@ -132,18 +114,19 @@ class ReviewSerializer(BaseSerializer):
             return Response({'error': 'Invalid JWT token'}, status=status.HTTP_401_UNAUTHORIZED)
         return payload['user_id']
 
+    @cached_property
+    def book_ids(self):
+        return set(Book.get_all_id())
+
     def validate(self, attrs):
         attrs['user_id'] = self.get_user()
         book_id = attrs.get('book_id')
-        if book_id not in Book.get_all_id():
+        if book_id not in self.book_ids():
             raise serializers.ValidationError(
                 {'error': 'Book Doesnt Exist'})
         return attrs
-    
-
 
     def get_edit_detail_url(self, instance):
-        request = self.context.get('request')
         user_id = self.get_user()
         review_id = instance['review_id']
         url = reverse_lazy('account:reviews-detail',
