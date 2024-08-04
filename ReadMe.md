@@ -27,11 +27,11 @@ The project provides the following API endpoints:
 - `POST /users/login`: Login an existing user
 - `GET /users/{id}`: Get a user's profile
 - `GET /users/{id}/suggest`: Get book suggestions for a user
-- `POST /reviews`: Create a new review
-- `GET /reviews`: Get all reviews for a user
-- `GET /reviews/{id}`: Get a single review
-- `PUT /reviews/{id}`: Update a review
-- `DELETE /reviews/{id}`: Delete a review
+- `POST /users/{user_id}/reviews`: Create a new review for user
+- `GET /users/{user_id}/reviews`: Get all reviews for a user
+- `GET /users/{user_id}/reviews/{id}`: Get a single review of the user
+- `PUT /users/{user_id}/reviews/{id}`: Update a review
+- `DELETE /users/{user_id}/reviews/{id}`: Delete a review
 
 ## **Database Schema**
 
